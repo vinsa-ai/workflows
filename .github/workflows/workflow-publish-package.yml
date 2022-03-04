@@ -36,7 +36,7 @@ jobs:
             type=semver,pattern={{major}}
 
       - name: Update version environment variable if possible
-        run: [ -e Dockerfile ] && sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' Dockerfile
+        run: test -e Dockerfile && sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' Dockerfile
         
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
