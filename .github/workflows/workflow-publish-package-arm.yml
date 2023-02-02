@@ -2,7 +2,7 @@ name: Publishing new release package
 
 on:
   workflow_call:
-        
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -26,7 +26,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2                                                                                           
+        uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -46,7 +46,7 @@ jobs:
 
       - name: Update version environment variable if possible
         run: test -e Arm64.dockerfile && sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' Arm64.dockerfile
-        
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
