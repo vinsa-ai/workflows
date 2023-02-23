@@ -30,7 +30,7 @@ on:
       pip_filter:
         type: string
         required: false
-        default: "alira\\|bosdyn"
+        default: "levatas\\|bosdyn"
 
     secrets:
       REPOSITORY_USER_TOKEN:
