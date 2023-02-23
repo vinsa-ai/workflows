@@ -72,7 +72,13 @@ jobs:
       - name: Update version environment variable if possible
         run: sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${{ inputs.dockerfile }}
 
-      - name: Build and push Docker image
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
         uses: docker/build-push-action@v3
         with:
           context: ${{ inputs.docker_context }}
@@ -81,17 +87,12 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
 
-      - name: Export docker image
+      - name: Export Docker image
         id: export_tar
         env:
           DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
         run: |
-          echo docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
-          echo docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" --output "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
-          echo tar zcf "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz" "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
-          echo "tar_filename=ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz"
-          docker image ls -a
           docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
           docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" --output "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
           tar zcf "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz" "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
@@ -101,8 +102,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
         run: |
-          gh release view $GITHUB_REF_NAME -R $GITHUB_REPOSITORY --json body --jq .body >> release-notes.txt
-          echo "## Installed Python Libraries" > release-notes.txt
+          gh release view $GITHUB_REF_NAME -R $GITHUB_REPOSITORY --json body --jq .body > release-notes.txt
+          echo "## Installed Python Libraries" >> release-notes.txt
           docker run --rm --entrypoint= ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$DOCKER_METADATA_OUTPUT_VERSION pip list" >> release-notes.txt
           echo "" >> release-notes.txt
 
