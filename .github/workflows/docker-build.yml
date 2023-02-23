@@ -98,7 +98,7 @@ jobs:
           tar zcf "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz" "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
           echo "tar_filename=ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz" >> ${GITHUB_OUTPUT}
 
-      - name: Prepare Release Notes
+      - name: Prepare Release Notes 2.0
         env:
           DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
