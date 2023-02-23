@@ -1,0 +1,109 @@
+name: Build docker image
+on:
+  workflow_call:
+    inputs:
+      dockerfile:
+        type: string
+        required: false
+        default: "Dockerfile"
+      
+      docker_context:
+        type: string
+        required: false
+        default: "./"
+
+      copy_spot_library:
+        type: boolean
+        required: false
+        default: false
+
+      spot_library_path:
+        type: string
+        required: false
+        default: "."
+
+    secrets:
+      REPOSITORY_USER_TOKEN:
+        required: true
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Copy Spot Library
+        if: ${{ inputs.copy_spot_library }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+        run: |
+          rm ${{ inputs.spot_library_path }}/spot_levatas_client-1.0-py3-none-any.whl
+          gh release download -R vinsa-ai/spot-levatas-client -p *.whl -D ${{ inputs.spot_library_path }}/
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to the Container registry (again/differently)
+        run: echo "${{ secrets.REPOSITORY_USER_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: metadata
+        uses: docker/metadata-action@v4
+        with:
+          flavor: |
+            latest=false
+            suffix=-arm64
+
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Update version environment variable if possible
+        run: sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${{ inputs.dockerfile }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{ inputs.docker_context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+
+      - name: Export docker image
+        id: export_tar
+        env:
+          DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
+        run: |
+          docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" --output "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
+          tar zcf "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz" "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
+          echo "tar_filename=ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz" >> $GITHUB_OUTPUT
+
+      - name: Attach docker image to release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+        with:
+          tag_name: ${{ env.GITHUB_REF_NAME }}
+          files: ${{ steps.export_tar.outputs.tar_filename }}
