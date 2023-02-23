@@ -114,8 +114,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
         run: |
           gh release view ${GITHUB_REF_NAME} -R ${GITHUB_REPOSITORY} --json body --jq .body > release-notes.txt
-          echo "## Installed Python Libraries" >> release-notes.txt
-          docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list >> release-notes.txt
 
       - name: Pip List
         if: ${{ inputs.include_pip_list }}
@@ -124,9 +122,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
         run: |
           echo "## Installed Python Libraries" >> release-notes.txt
-          echo "<code>" >> release-notes.txt
+          echo "<pre>" >> release-notes.txt
           docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list | grep "${{ inputs.pip_filter }}" >> release-notes.txt
-          echo "</code>" >> release-notes.txt
+          echo "</pre>" >> release-notes.txt
 
       - name: Attach docker image to release
         uses: softprops/action-gh-release@v1
