@@ -22,6 +22,16 @@ on:
         required: false
         default: "."
 
+      include_pip_list:
+        type: boolean
+        required: false
+        default: false
+
+      pip_filter:
+        type: string
+        required: false
+        default: "alira\\|bosdyn"
+
     secrets:
       REPOSITORY_USER_TOKEN:
         required: true
@@ -106,6 +116,15 @@ jobs:
           gh release view ${GITHUB_REF_NAME} -R ${GITHUB_REPOSITORY} --json body --jq .body > release-notes.txt
           echo "## Installed Python Libraries" >> release-notes.txt
           docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list >> release-notes.txt
+
+      - name: Pip List
+        if: ${{ inputs.include_pip_list }}
+        env:
+          DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+        run: |
+          echo "## Installed Python Libraries" >> release-notes.txt
+          docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list | grep "${{ inputs.pip_filter }}" >> release-notes.txt
 
       - name: Attach docker image to release
         uses: softprops/action-gh-release@v1
