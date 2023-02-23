@@ -26,6 +26,10 @@ on:
       REPOSITORY_USER_TOKEN:
         required: true
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   main:
     runs-on: ubuntu-latest
