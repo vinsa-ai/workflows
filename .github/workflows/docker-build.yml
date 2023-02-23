@@ -10,7 +10,7 @@ on:
       docker_context:
         type: string
         required: false
-        default: "./"
+        default: "."
 
       copy_spot_library:
         type: boolean
@@ -87,7 +87,7 @@ jobs:
           DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
         run: |
-          docker image ls
+          docker image ls -a
           echo docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" --output "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
           echo tar zcf "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz" "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar"
           echo "tar_filename=ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar.gz"
