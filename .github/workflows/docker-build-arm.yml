@@ -29,7 +29,7 @@ on:
         required: true
 
 jobs:
-  build-and-push-image:
+  main:
     runs-on: ubuntu-latest
     permissions:
       contents: read

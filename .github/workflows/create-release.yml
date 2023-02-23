@@ -12,7 +12,7 @@ on:
         required: true
 
 jobs:
-  tag-and-create-release:
+  main:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
