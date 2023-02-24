@@ -7,6 +7,11 @@ on:
         required: false
         default: "3.8"
 
+      install_script:
+        type: string
+        required: false
+        default: ""
+
     secrets:
       REPOSITORY_USER_TOKEN:
         required: true
@@ -29,7 +34,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
-          
+
+      - name: Execute install script
+        if: ${{ inputs.install_script }} != ""
+        run: ${{ inputs.install_script }}
+
       - name: Run tests with pytest
         run: pytest -x
         
