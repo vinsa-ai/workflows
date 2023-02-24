@@ -2,6 +2,11 @@ name: Build docker image
 on:
   workflow_call:
     inputs:
+      install_script:
+        type: string
+        required: false
+        default: ""
+
       dockerfile:
         type: string
         required: false
@@ -40,6 +45,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
 
       - name: Copy Spot Library
         if: ${{ inputs.copy_spot_library }}
@@ -82,6 +90,10 @@ jobs:
 
       - name: Update version environment variable if possible
         run: sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${{ inputs.dockerfile }}
+
+      - name: Execute install script
+        if: ${{ inputs.install_script }} != ""
+        run: ${{ inputs.install_script }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
