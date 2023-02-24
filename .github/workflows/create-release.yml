@@ -1,0 +1,56 @@
+name: Run units tests and create release
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        type: string
+        required: false
+        default: "3.8"
+
+    secrets:
+      REPOSITORY_USER_TOKEN:
+        required: true
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python_version }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+          
+      - name: Run tests with pytest
+        run: pytest -x
+        
+      - name: Bump version and tag it
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.REPOSITORY_USER_TOKEN }}
+      
+      - name: Prepare Release Notes
+        run: |
+          echo "## Git Logs" >> release-notes.txt
+          echo "Commits Since Previous Version: ${{ steps.tag_version.outputs.previous_tag }}" >> release-notes.txt
+          echo "" >> release-notes.txt
+          git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
+
+      - name: Create a release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_version }}
+          body_path: release-notes.txt
