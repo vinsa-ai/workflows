@@ -46,7 +46,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  main:
+  docker_build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
