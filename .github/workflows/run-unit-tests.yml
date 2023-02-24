@@ -7,6 +7,11 @@ on:
         required: false
         default: "3.8"
 
+      install_script:
+        type: string
+        required: false
+        default: ""
+
     secrets:
       REPOSITORY_USER_TOKEN:
         required: true
@@ -16,8 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
       
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -26,9 +29,12 @@ jobs:
           
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip pytest
           pip install -r requirements.txt
-          pip install pytest
-          
+
+      - name: Execute install script
+        if: ${{ inputs.install_script }} != ""
+        run: ${{ inputs.install_script }}
+
       - name: Run tests with pytest
         run: pytest -x
