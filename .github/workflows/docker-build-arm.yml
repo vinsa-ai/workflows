@@ -89,9 +89,7 @@ jobs:
             type=semver,pattern={{major}}
 
       - name: Update version environment variable if possible
-        env:
-          DOCKER_FILE_PATH: ${{ inputs.docker_context }}/${{ inputs.dockerfile }}
-        run: sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${DOCKER_FILE_PATH}
+        run: if [ -e ${{ inputs.dockerfile }} ]; then sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${{ inputs.dockerfile }}; fi
 
       - name: Execute install script
         if: ${{ inputs.install_script }} != ""
