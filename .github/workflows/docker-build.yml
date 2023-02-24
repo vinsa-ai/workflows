@@ -90,10 +90,10 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
 
-      - name: Update version environment variable if possible
-        env:
-          DOCKER_FILE_PATH: ${{ inputs.docker_context }}/${{ inputs.dockerfile }}
-        run: sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${DOCKER_FILE_PATH}
+      # - name: Update version environment variable if possible
+      #   env:
+      #     DOCKER_FILE_PATH: ${{ inputs.docker_context }}/${{ inputs.dockerfile }}
+      #   run: sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${DOCKER_FILE_PATH}
 
       - name: Execute install script
         if: ${{ inputs.install_script }} != ""
