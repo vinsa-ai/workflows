@@ -130,7 +130,7 @@ jobs:
           DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
         run: |
-          echo "## Installed Python Libraries" >> release-notes.txt
+          echo "## Installed Python Libraries (AMD64)" >> release-notes.txt
           echo "<pre>" >> release-notes.txt
           docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list | grep "${{ inputs.pip_filter }}" >> release-notes.txt
           echo "</pre>" >> release-notes.txt
@@ -143,4 +143,3 @@ jobs:
           tag_name: ${{ env.GITHUB_REF_NAME }}
           files: ${{ steps.export_tar.outputs.tar_filename }}
           body_path: release-notes.txt
-
