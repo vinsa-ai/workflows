@@ -12,6 +12,16 @@ on:
         required: false
         default: ""
 
+      copy_spot_library:
+        type: boolean
+        required: false
+        default: false
+
+      spot_library_path:
+        type: string
+        required: false
+        default: "."
+
     secrets:
       REPOSITORY_USER_TOKEN:
         required: true
@@ -31,6 +41,15 @@ jobs:
         run: |
           pip install --upgrade pip pytest
           pip install -r requirements.txt
+
+      - name: Copy Spot Library
+        if: ${{ inputs.copy_spot_library }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+        run: |
+          rm ${{ inputs.spot_library_path }}/spot_levatas_client-1.0-py3-none-any.whl
+          gh release download -R vinsa-ai/spot-levatas-client -p *.whl -D ${{ inputs.spot_library_path }}/
+          pip install ${{ inputs.spot_library_path }}/spot_levatas_client-1.0-py3-none-any.whl
 
       - name: Execute install script
         if: ${{ inputs.install_script }} != ""
