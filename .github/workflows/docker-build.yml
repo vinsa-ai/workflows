@@ -112,10 +112,9 @@ jobs:
           DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
         run: |
-          docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
           export FILENAME=$(echo "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar" | sed s/-/_/g)
-          docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" --output "${FILENAME}"
-          tar zcf "${FILENAME}.gz" "${FILENAME}"
+          docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
+          docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" | gzip > "${FILENAME}.gz"
           echo "tar_filename=${FILENAME}.gz" >> ${GITHUB_OUTPUT}
 
       - name: Prepare Release Notes 2.0
