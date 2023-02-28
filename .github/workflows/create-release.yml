@@ -2,6 +2,11 @@ name: Run units tests and create release
 on:
   workflow_call:
     inputs:
+      skip_pytest:
+        type: boolean
+        required: false
+        default: false
+
       python_version:
         type: string
         required: false
@@ -59,8 +64,14 @@ jobs:
         run: ${{ inputs.install_script }}
 
       - name: Run tests with pytest
+        if: ${{ ! inputs.skip_pytest }}
         run: pytest -x
         
+      - name: Warning about pytest
+        if: ${{ inputs.skip_pytest }}
+        run: |
+          echo '::warning:: pytest is disabled.'
+
       - name: Bump version and tag it
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.1
