@@ -27,6 +27,11 @@ on:
         required: false
         default: "."
 
+      use_lfs:
+        type: boolean
+        required: false
+        default: false
+
     secrets:
       REPOSITORY_USER_TOKEN:
         required: true
@@ -36,6 +41,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          lfs: ${{ inputs.use_lfs }}
+
+      - name: Checkout LFS objects if needed
+        if: ${{ inputs.use_lfs }}
+        run: git lfs checkout
       
       - name: Setup Python
         uses: actions/setup-python@v4

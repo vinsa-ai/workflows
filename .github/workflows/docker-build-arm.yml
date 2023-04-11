@@ -37,6 +37,11 @@ on:
         required: false
         default: "levatas\\|bosdyn"
 
+      use_lfs:
+        type: boolean
+        required: false
+        default: false
+
     secrets:
       REPOSITORY_USER_TOKEN:
         required: true
@@ -55,6 +60,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          lfs: ${{ inputs.use_lfs }}
+
+      - name: Checkout LFS objects if needed
+        if: ${{ inputs.use_lfs }}
+        run: git lfs checkout
 
       - name: Download artifacts
         uses: actions/download-artifact@v3
