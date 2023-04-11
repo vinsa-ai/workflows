@@ -69,6 +69,7 @@ jobs:
 
       - name: Execute install script
         if: ${{ inputs.install_script }} != ""
+        env: DEFINITELY_DOING_PYTEST: 1
         run: ${{ inputs.install_script }}
 
       - name: Run tests with pytest
