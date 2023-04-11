@@ -75,6 +75,7 @@ jobs:
 
       - name: Run tests with pytest
         if: ${{ ! inputs.skip_pytest }}
+        env: DEFINITELY_DOING_PYTEST: 1
         run: pytest -x
         
       - name: Warning about pytest
