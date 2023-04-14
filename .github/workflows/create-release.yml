@@ -88,13 +88,22 @@ jobs:
         with:
           github_token: ${{ secrets.REPOSITORY_USER_TOKEN }}
       
-      - name: Prepare Release Notes
+      - name: Prepare Release Notes 1
         run: |
           echo "## Git Logs" >> release-notes.txt
           echo "Commits Since Previous Version: ${{ steps.tag_version.outputs.previous_tag }}" >> release-notes.txt
           echo "" >> release-notes.txt
+      
+      - name: Prepare Release Notes 2
+        if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0')
+        run: |
+          echo "No previous release" >> release-notes.txt   
+        
+      - name: Prepare Release Notes 3
+        if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0') == false
+        run: |
           git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
-
+      
       - name: Create a release
         uses: softprops/action-gh-release@v1
         env:
