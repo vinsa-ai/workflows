@@ -2,6 +2,11 @@ name: Run units tests and create release
 on:
   workflow_call:
     inputs:
+      skip_pytest:
+        type: boolean
+        required: false
+        default: false
+
       python_version:
         type: string
         required: false
@@ -22,6 +27,11 @@ on:
         required: false
         default: "."
 
+      use_lfs:
+        type: boolean
+        required: false
+        default: false
+
     secrets:
       REPOSITORY_USER_TOKEN:
         required: true
@@ -33,6 +43,11 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          lfs: ${{ inputs.use_lfs }}
+
+      - name: Checkout LFS objects if needed
+        if: ${{ inputs.use_lfs }}
+        run: git lfs checkout
       
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -59,21 +74,36 @@ jobs:
         run: ${{ inputs.install_script }}
 
       - name: Run tests with pytest
+        if: ${{ ! inputs.skip_pytest }}
         run: pytest -x
         
+      - name: Warning about pytest
+        if: ${{ inputs.skip_pytest }}
+        run: |
+          echo '::warning:: pytest is disabled.'
+
       - name: Bump version and tag it
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.1
         with:
           github_token: ${{ secrets.REPOSITORY_USER_TOKEN }}
       
-      - name: Prepare Release Notes
+      - name: Prepare Release Notes 1
         run: |
           echo "## Git Logs" >> release-notes.txt
           echo "Commits Since Previous Version: ${{ steps.tag_version.outputs.previous_tag }}" >> release-notes.txt
           echo "" >> release-notes.txt
+      
+      - name: Prepare Release Notes 2
+        if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0')
+        run: |
+          echo "No previous release" >> release-notes.txt   
+        
+      - name: Prepare Release Notes 3
+        if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0') == false
+        run: |
           git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
-
+      
       - name: Create a release
         uses: softprops/action-gh-release@v1
         env:
