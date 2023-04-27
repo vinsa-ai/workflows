@@ -118,7 +118,7 @@ jobs:
           labels: ${{ steps.metadata.outputs.labels }}
 
       - name: Export Docker image
-        id: export_tar
+        id: docker_export
         env:
           DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
@@ -156,6 +156,6 @@ jobs:
         with:
           tag_name: ${{ env.GITHUB_REF_NAME }}
           files: |
-            ${{ steps.export_tar.outputs.tar_filename }}
-            ${{ steps.export_tar.outputs.json_filename }}
+            ${{ steps.docker_export.outputs.tar_filename }}
+            ${{ steps.docker_export.outputs.json_filename }}
           body_path: release-notes.txt
