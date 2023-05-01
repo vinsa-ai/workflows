@@ -11,7 +11,7 @@ on:
         type: string
         required: false
         default: "Dockerfile"
-      
+
       docker_context:
         type: string
         required: false
@@ -126,16 +126,20 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
 
+
       - name: Export Docker image
-        id: export_tar
+        id: docker_export
         env:
           DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
         run: |
-          export FILENAME=$(echo "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}.tar" | sed s/-/_/g)
+          export BASE_FILENAME=$(echo "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}" | sed s/-/_/g)
+          export TAR_FILENAME=${BASE_FILENAME}.tar
           docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
-          docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" | gzip > "${FILENAME}.gz"
-          echo "tar_filename=${FILENAME}.gz" >> ${GITHUB_OUTPUT}
+          docker image inspect "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" > ${BASE_FILENAME}.json
+          docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" | gzip > "${TAR_FILENAME}.gz"
+          echo "tar_filename=${TAR_FILENAME}.gz" >> ${GITHUB_OUTPUT}
+          echo "json_filename=${BASE_FILENAME}.json" >> ${GITHUB_OUTPUT}
 
       - name: Prepare Release Notes 2.0
         env:
@@ -161,5 +165,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
         with:
           tag_name: ${{ env.GITHUB_REF_NAME }}
-          files: ${{ steps.export_tar.outputs.tar_filename }}
+          files: |
+            ${{ steps.docker_export.outputs.tar_filename }}
+            ${{ steps.docker_export.outputs.json_filename }}
           body_path: release-notes.txt
