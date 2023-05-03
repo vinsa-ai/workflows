@@ -48,13 +48,14 @@ jobs:
       - name: Checkout LFS objects if needed
         if: ${{ inputs.use_lfs }}
         run: git lfs checkout
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ inputs.python_version }}
-          
+
       - name: Install dependencies
+        if: ${{ ! inputs.skip_pytest }}
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -76,7 +77,7 @@ jobs:
       - name: Run tests with pytest
         if: ${{ ! inputs.skip_pytest }}
         run: pytest -x
-        
+
       - name: Warning about pytest
         if: ${{ inputs.skip_pytest }}
         run: |
@@ -87,23 +88,23 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.1
         with:
           github_token: ${{ secrets.REPOSITORY_USER_TOKEN }}
-      
+
       - name: Prepare Release Notes 1
         run: |
           echo "## Git Logs" >> release-notes.txt
           echo "Commits Since Previous Version: ${{ steps.tag_version.outputs.previous_tag }}" >> release-notes.txt
           echo "" >> release-notes.txt
-      
+
       - name: Prepare Release Notes 2
         if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0')
         run: |
-          echo "No previous release" >> release-notes.txt   
-        
+          echo "No previous release" >> release-notes.txt
+
       - name: Prepare Release Notes 3
         if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0') == false
         run: |
           git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
-      
+
       - name: Create a release
         uses: softprops/action-gh-release@v1
         env:
