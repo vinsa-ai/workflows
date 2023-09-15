@@ -35,7 +35,7 @@ on:
       pip_filter:
         type: string
         required: false
-        default: "levatas\\|bosdyn"
+        default: ""
 
       use_lfs:
         type: boolean
