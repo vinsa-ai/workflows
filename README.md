@@ -1,12 +1,12 @@
 # GitHub Workflows
 
 ```
-actions/checkout@v3
-actions/download-artifact@v3
-docker/login-action@v2
-docker/setup-qemu-action@v2
-docker/setup-buildx-action@v2
-docker/metadata-action@v4
-docker/build-push-action@v3
-softprops/action-gh-release@v1.
+actions/checkout@v4
+actions/download-artifact@v4
+docker/login-action@v3
+docker/setup-qemu-action@v3
+docker/setup-buildx-action@v3
+docker/metadata-action@v5
+docker/build-push-action@v5
+softprops/action-gh-release@master
 ```
