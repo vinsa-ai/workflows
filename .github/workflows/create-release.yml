@@ -17,16 +17,6 @@ on:
         required: false
         default: ""
 
-      copy_spot_library:
-        type: boolean
-        required: false
-        default: false
-
-      spot_library_path:
-        type: string
-        required: false
-        default: "."
-
       use_lfs:
         type: boolean
         required: false
@@ -40,7 +30,7 @@ jobs:
   create_release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: ${{ inputs.use_lfs }}
@@ -50,7 +40,7 @@ jobs:
         run: git lfs checkout
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python_version }}
 
@@ -60,15 +50,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
-
-      - name: Copy Spot Library
-        if: ${{ inputs.copy_spot_library }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
-        run: |
-          rm ${{ inputs.spot_library_path }}/spot_levatas_client-1.0-py3-none-any.whl
-          gh release download -R vinsa-ai/spot-levatas-client -p *.whl -D ${{ inputs.spot_library_path }}/
-          pip install ${{ inputs.spot_library_path }}/spot_levatas_client-1.0-py3-none-any.whl
 
       - name: Execute install script
         if: ${{ inputs.install_script }} != ""
@@ -106,7 +87,7 @@ jobs:
           git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
 
       - name: Create a release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@master
         env:
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
         with:
