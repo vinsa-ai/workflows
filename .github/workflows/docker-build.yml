@@ -132,7 +132,7 @@ jobs:
           echo "</pre>" >> release-notes.txt
 
       - name: Attach docker image to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@master
         env:
           GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
         with:
