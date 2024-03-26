@@ -11,5 +11,5 @@ docker/metadata-action@v5
 docker/build-push-action@v5
 
 softprops/action-gh-release@master
-mathieudutour/github-tag-action@v6.1
+mathieudutour/github-tag-action@v6.2
 ```
