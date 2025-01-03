@@ -1,143 +1,145 @@
 name: Build docker image
 on:
-  workflow_call:
-    inputs:
-      install_script:
-        type: string
-        required: false
-        default: ""
+    workflow_call:
+        inputs:
+            install_script:
+                type: string
+                required: false
+                default: ""
 
-      dockerfile:
-        type: string
-        required: false
-        default: "Dockerfile"
+            dockerfile:
+                type: string
+                required: false
+                default: "Dockerfile"
 
-      docker_context:
-        type: string
-        required: false
-        default: "."
+            docker_context:
+                type: string
+                required: false
+                default: "."
 
-      include_pip_list:
-        type: boolean
-        required: false
-        default: false
+            include_pip_list:
+                type: boolean
+                required: false
+                default: false
 
-      pip_filter:
-        type: string
-        required: false
-        default: ""
+            pip_filter:
+                type: string
+                required: false
+                default: ""
 
-      use_lfs:
-        type: boolean
-        required: false
-        default: false
+            use_lfs:
+                type: boolean
+                required: false
+                default: false
 
-    secrets:
-      REPOSITORY_USER_TOKEN:
-        required: true
+        secrets:
+            REPOSITORY_USER_TOKEN:
+                required: true
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    REGISTRY: ghcr.io
+    IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  docker_build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    docker_build:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          lfs: ${{ inputs.use_lfs }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  lfs: ${{ inputs.use_lfs }}
 
-      - name: Checkout LFS objects if needed
-        if: ${{ inputs.use_lfs }}
-        run: git lfs checkout
+            - name: Checkout LFS objects if needed
+              if: ${{ inputs.use_lfs }}
+              run: git lfs checkout
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.REPOSITORY_USER_TOKEN }}
+            - name: Log in to the Container registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.REPOSITORY_USER_TOKEN }}
 
-      - name: Log in to the Container registry (again/differently)
-        run: echo "${{ secrets.REPOSITORY_USER_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            - name: Log in to the Container registry (again/differently)
+              run: echo "${{ secrets.REPOSITORY_USER_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: metadata
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            - name: Extract metadata (tags, labels) for Docker
+              id: metadata
+              uses: docker/metadata-action@v5
+              with:
+                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                  tags: |
+                      type=semver,pattern={{version}}
+                      type=semver,pattern={{major}}.{{minor}}
+                      type=semver,pattern={{major}}
 
-      - name: Update version environment variable if possible
-        run: if [ -e ${{ inputs.dockerfile }} ]; then sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${{ inputs.dockerfile }}; fi
+            - name: Update version environment variable if possible
+              run: |
+                  if [ -e ${{ inputs.dockerfile }} ]; then sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${{ inputs.dockerfile }}; fi
+                  if [ -e ${{ inputs.dockerfile }} ]; then sed -i 's/CONTAINER_RELEASE_VERSION=unknown/CONTAINER_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' ${{ inputs.dockerfile }}; fi
 
-      - name: Execute install script
-        if: ${{ inputs.install_script }} != ""
-        run: ${{ inputs.install_script }}
+            - name: Execute install script
+              if: ${{ inputs.install_script }} != ""
+              run: ${{ inputs.install_script }}
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ inputs.docker_context }}
-          file: ${{ inputs.dockerfile }}
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
+            - name: Build Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: ${{ inputs.docker_context }}
+                  file: ${{ inputs.dockerfile }}
+                  push: true
+                  tags: ${{ steps.metadata.outputs.tags }}
+                  labels: ${{ steps.metadata.outputs.labels }}
 
-      - name: Export Docker image
-        id: docker_export
-        env:
-          DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
-        run: |
-          export BASE_FILENAME=$(echo "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}" | sed s/-/_/g)
-          export TAR_FILENAME=${BASE_FILENAME}.tar
-          docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
-          docker image inspect "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" > ${BASE_FILENAME}.json
-          docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" | gzip > "${TAR_FILENAME}.gz"
-          echo "tar_filename=${TAR_FILENAME}.gz" >> ${GITHUB_OUTPUT}
-          echo "json_filename=${BASE_FILENAME}.json" >> ${GITHUB_OUTPUT}
+            - name: Export Docker image
+              id: docker_export
+              env:
+                  DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                  SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
+              run: |
+                  export BASE_FILENAME=$(echo "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}" | sed s/-/_/g)
+                  export TAR_FILENAME=${BASE_FILENAME}.tar
+                  docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
+                  docker image inspect "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" > ${BASE_FILENAME}.json
+                  docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" | gzip > "${TAR_FILENAME}.gz"
+                  echo "tar_filename=${TAR_FILENAME}.gz" >> ${GITHUB_OUTPUT}
+                  echo "json_filename=${BASE_FILENAME}.json" >> ${GITHUB_OUTPUT}
 
-      - name: Prepare Release Notes 2.0
-        env:
-          DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
-        run: |
-          gh release view ${GITHUB_REF_NAME} -R ${GITHUB_REPOSITORY} --json body --jq .body > release-notes.txt
+            - name: Prepare Release Notes 2.0
+              env:
+                  DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                  GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+              run: |
+                  gh release view ${GITHUB_REF_NAME} -R ${GITHUB_REPOSITORY} --json body --jq .body > release-notes.txt
 
-      - name: Pip List
-        if: ${{ inputs.include_pip_list }}
-        env:
-          DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
-        run: |
-          echo "## Installed Python Libraries (AMD64)" >> release-notes.txt
-          echo "<pre>" >> release-notes.txt
-          docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list | grep "${{ inputs.pip_filter }}" >> release-notes.txt
-          echo "</pre>" >> release-notes.txt
+            - name: Pip List
+              if: ${{ inputs.include_pip_list }}
+              env:
+                  DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                  GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+              run: |
+                  echo "## Installed Python Libraries (AMD64)" >> release-notes.txt
+                  echo "<pre>" >> release-notes.txt
+                  docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list | grep "${{ inputs.pip_filter }}" >> release-notes.txt
+                  echo "</pre>" >> release-notes.txt
 
-      - name: Attach docker image to release
-        uses: softprops/action-gh-release@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
-        with:
-          tag_name: ${{ env.GITHUB_REF_NAME }}
-          files: |
-            ${{ steps.docker_export.outputs.tar_filename }}
-            ${{ steps.docker_export.outputs.json_filename }}
-          body_path: release-notes.txt
+            - name: Attach docker image to release
+              uses: softprops/action-gh-release@v2.1.0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+              with:
+                  tag_name: ${{ env.GITHUB_REF_NAME }}
+                  files: |
+                      ${{ steps.docker_export.outputs.tar_filename }}
+                      ${{ steps.docker_export.outputs.json_filename }}
+                  body_path: release-notes.txt
