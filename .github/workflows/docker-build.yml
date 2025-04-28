@@ -156,7 +156,7 @@ jobs:
               run: |
                   echo "## Installed Python Libraries (AMD64)" >> release-notes.txt
                   echo "<pre>" >> release-notes.txt
-                  docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list | grep "${{ inputs.pip_filter }}" >> release-notes.txt
+                  docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list --verbose | grep "${{ inputs.pip_filter }}" >> release-notes.txt
                   echo "</pre>" >> release-notes.txt
 
             - name: Attach docker image to release
