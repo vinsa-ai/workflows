@@ -105,10 +105,6 @@ jobs:
               with:
                   ssh-private-key: ${{ secrets.ACTIONS_SSH_KEY }}
 
-            - name: Debug
-              run: |
-                  cat ~/.ssh/config && cat ~/.ssh/known_hosts && env
-
             - name: Add github.com to known_hosts
               if: ${{ inputs.has_ssh_key }}
               run: |
