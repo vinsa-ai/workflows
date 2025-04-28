@@ -35,6 +35,8 @@ on:
         secrets:
             REPOSITORY_USER_TOKEN:
                 required: true
+            ACTIONS_SSH_KEY:
+                required: false
 
 env:
     REGISTRY: ghcr.io
@@ -97,7 +99,32 @@ jobs:
               if: ${{ inputs.install_script }} != ""
               run: ${{ inputs.install_script }}
 
-            - name: Build and push Docker image
+            - name: Set up SSH key for private repo access
+              if: ${{ secrets.ACTIONS_SSH_KEY != '' }}
+              uses: webfactory/ssh-agent@v0.8.0
+              with:
+                  ssh-private-key: ${{ secrets.ACTIONS_SSH_KEY }}
+
+            - name: Add github.com to known_hosts
+              if: ${{ secrets.ACTIONS_SSH_KEY != '' }}
+              run: |
+                  mkdir -p ~/.ssh
+                  ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+            - name: Build and push Docker image (with SSH)
+              if: ${{ secrets.ACTIONS_SSH_KEY != '' }}
+              uses: docker/build-push-action@v5
+              with:
+                  context: ${{ inputs.docker_context }}
+                  file: ${{ inputs.dockerfile }}
+                  platforms: linux/arm64
+                  push: true
+                  tags: ${{ steps.metadata.outputs.tags }}
+                  labels: ${{ steps.metadata.outputs.labels }}
+                  ssh: default
+
+            - name: Build and push Docker image (without SSH)
+              if: ${{ secrets.ACTIONS_SSH_KEY == '' }}
               uses: docker/build-push-action@v5
               with:
                   context: ${{ inputs.docker_context }}
