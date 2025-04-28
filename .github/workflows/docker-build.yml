@@ -100,6 +100,7 @@ jobs:
               run: ${{ inputs.install_script }}
 
             - name: Setup SSH
+              if: ${{ inputs.has_ssh_key }}
               uses: MrSquaare/ssh-setup-action@v3.1.0
               with:
                   host: github.com
