@@ -120,7 +120,7 @@ jobs:
                   push: true
                   tags: ${{ steps.metadata.outputs.tags }}
                   labels: ${{ steps.metadata.outputs.labels }}
-                  ssh: default=${{ env.SSH_AUTH_SOCK }}
+                  ssh: default=${{ secrets.ACTIONS_SSH_KEY }}
 
             - name: Build Docker image (without SSH)
               if: ${{ !inputs.has_ssh_key }}
