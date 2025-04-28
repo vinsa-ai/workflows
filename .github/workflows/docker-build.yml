@@ -32,6 +32,11 @@ on:
                 required: false
                 default: false
 
+            has_ssh_key:
+                type: boolean
+                required: false
+                default: false
+
         secrets:
             REPOSITORY_USER_TOKEN:
                 required: true
@@ -95,20 +100,20 @@ jobs:
               run: ${{ inputs.install_script }}
 
             - name: Set up SSH key for private repo access
-              if: ${{ secrets.ACTIONS_SSH_KEY != '' }}
-              uses: webfactory/ssh-agent@v0.8.0
+              if: ${{ inputs.has_ssh_key }}
+              uses: webfactory/ssh-agent@v0.9.0
               with:
                   ssh-private-key: ${{ secrets.ACTIONS_SSH_KEY }}
 
             - name: Add github.com to known_hosts
-              if: ${{ secrets.ACTIONS_SSH_KEY != '' }}
+              if: ${{ inputs.has_ssh_key }}
               run: |
                   mkdir -p ~/.ssh
                   ssh-keyscan github.com >> ~/.ssh/known_hosts
 
             - name: Build Docker image (with SSH)
-              if: ${{ secrets.ACTIONS_SSH_KEY != '' }}
-              uses: docker/build-push-action@v5
+              if: ${{ inputs.has_ssh_key }}
+              uses: docker/build-push-action@v6.16.0
               with:
                   context: ${{ inputs.docker_context }}
                   file: ${{ inputs.dockerfile }}
@@ -118,8 +123,8 @@ jobs:
                   ssh: default
 
             - name: Build Docker image (without SSH)
-              if: ${{ secrets.ACTIONS_SSH_KEY == '' }}
-              uses: docker/build-push-action@v5
+              if: ${{ !inputs.has_ssh_key }}
+              uses: docker/build-push-action@v6.16.0
               with:
                   context: ${{ inputs.docker_context }}
                   file: ${{ inputs.dockerfile }}
