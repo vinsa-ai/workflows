@@ -105,12 +105,7 @@ jobs:
               with:
                   host: github.com
                   private-key: ${{ secrets.ACTIONS_SSH_KEY }}
-
-            - name: Add github.com to known_hosts
-              if: ${{ inputs.has_ssh_key }}
-              run: |
-                  mkdir -p ~/.ssh
-                  ssh-keyscan github.com >> ~/.ssh/known_hosts
+                  private-key-name: github-key
 
             - name: Build Docker image (with SSH)
               if: ${{ inputs.has_ssh_key }}
@@ -121,7 +116,7 @@ jobs:
                   push: true
                   tags: ${{ steps.metadata.outputs.tags }}
                   labels: ${{ steps.metadata.outputs.labels }}
-                  ssh: default=${{ env.SSH_AUTH_SOCK }}
+                  ssh: github-key
 
             - name: Build Docker image (without SSH)
               if: ${{ !inputs.has_ssh_key }}
