@@ -1,96 +1,96 @@
 name: Run units tests and create release
 on:
-  workflow_call:
-    inputs:
-      skip_pytest:
-        type: boolean
-        required: false
-        default: false
+    workflow_call:
+        inputs:
+            skip_pytest:
+                type: boolean
+                required: false
+                default: false
 
-      python_version:
-        type: string
-        required: false
-        default: "3.8"
+            python_version:
+                type: string
+                required: false
+                default: "3.12"
 
-      install_script:
-        type: string
-        required: false
-        default: ""
+            install_script:
+                type: string
+                required: false
+                default: ""
 
-      use_lfs:
-        type: boolean
-        required: false
-        default: false
+            use_lfs:
+                type: boolean
+                required: false
+                default: false
 
-    secrets:
-      REPOSITORY_USER_TOKEN:
-        required: true
+        secrets:
+            REPOSITORY_USER_TOKEN:
+                required: true
 
 jobs:
-  create_release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: ${{ inputs.use_lfs }}
+    create_release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  lfs: ${{ inputs.use_lfs }}
 
-      - name: Checkout LFS objects if needed
-        if: ${{ inputs.use_lfs }}
-        run: git lfs checkout
+            - name: Checkout LFS objects if needed
+              if: ${{ inputs.use_lfs }}
+              run: git lfs checkout
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ inputs.python_version }}
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ inputs.python_version }}
 
-      - name: Install dependencies
-        if: ${{ ! inputs.skip_pytest }}
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
+            - name: Install dependencies
+              if: ${{ ! inputs.skip_pytest }}
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+                  pip install pytest
 
-      - name: Execute install script
-        if: ${{ inputs.install_script }} != ""
-        run: ${{ inputs.install_script }}
+            - name: Execute install script
+              if: ${{ inputs.install_script }} != ""
+              run: ${{ inputs.install_script }}
 
-      - name: Run tests with pytest
-        if: ${{ ! inputs.skip_pytest }}
-        run: pytest -x
+            - name: Run tests with pytest
+              if: ${{ ! inputs.skip_pytest }}
+              run: pytest -x
 
-      - name: Warning about pytest
-        if: ${{ inputs.skip_pytest }}
-        run: |
-          echo '::warning:: pytest is disabled.'
+            - name: Warning about pytest
+              if: ${{ inputs.skip_pytest }}
+              run: |
+                  echo '::warning:: pytest is disabled.'
 
-      - name: Bump version and tag it
-        id: tag_version
-        uses: mathieudutour/github-tag-action@v6.2
-        with:
-          github_token: ${{ secrets.REPOSITORY_USER_TOKEN }}
+            - name: Bump version and tag it
+              id: tag_version
+              uses: mathieudutour/github-tag-action@v6.2
+              with:
+                  github_token: ${{ secrets.REPOSITORY_USER_TOKEN }}
 
-      - name: Prepare Release Notes 1
-        run: |
-          echo "## Git Logs" >> release-notes.txt
-          echo "Commits Since Previous Version: ${{ steps.tag_version.outputs.previous_tag }}" >> release-notes.txt
-          echo "" >> release-notes.txt
+            - name: Prepare Release Notes 1
+              run: |
+                  echo "## Git Logs" >> release-notes.txt
+                  echo "Commits Since Previous Version: ${{ steps.tag_version.outputs.previous_tag }}" >> release-notes.txt
+                  echo "" >> release-notes.txt
 
-      - name: Prepare Release Notes 2
-        if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0')
-        run: |
-          echo "No previous release" >> release-notes.txt
+            - name: Prepare Release Notes 2
+              if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0')
+              run: |
+                  echo "No previous release" >> release-notes.txt
 
-      - name: Prepare Release Notes 3
-        if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0') == false
-        run: |
-          git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
+            - name: Prepare Release Notes 3
+              if: startsWith(steps.tag_version.outputs.previous_tag, 'v0.0.0') == false
+              run: |
+                  git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
 
-      - name: Create a release
-        uses: softprops/action-gh-release@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag_version.outputs.new_tag }}
-          name: Release ${{ steps.tag_version.outputs.new_version }}
-          body_path: release-notes.txt
+            - name: Create a release
+              uses: softprops/action-gh-release@master
+              env:
+                  GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+              with:
+                  tag_name: ${{ steps.tag_version.outputs.new_tag }}
+                  name: Release ${{ steps.tag_version.outputs.new_version }}
+                  body_path: release-notes.txt

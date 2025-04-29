@@ -32,9 +32,16 @@ on:
                 required: false
                 default: false
 
+            has_ssh_key:
+                type: boolean
+                required: false
+                default: false
+
         secrets:
             REPOSITORY_USER_TOKEN:
                 required: true
+            ACTIONS_SSH_KEY:
+                required: false
 
 env:
     REGISTRY: ghcr.io
@@ -92,8 +99,27 @@ jobs:
               if: ${{ inputs.install_script }} != ""
               run: ${{ inputs.install_script }}
 
-            - name: Build Docker image
-              uses: docker/build-push-action@v5
+            - name: Setup SSH
+              if: ${{ inputs.has_ssh_key }}
+              uses: MrSquaare/ssh-setup-action@v3.1.0
+              with:
+                  host: github.com
+                  private-key: ${{ secrets.ACTIONS_SSH_KEY }}
+
+            - name: Build Docker image (with SSH)
+              if: ${{ inputs.has_ssh_key }}
+              uses: docker/build-push-action@v6.16.0
+              with:
+                  context: ${{ inputs.docker_context }}
+                  file: ${{ inputs.dockerfile }}
+                  push: true
+                  tags: ${{ steps.metadata.outputs.tags }}
+                  labels: ${{ steps.metadata.outputs.labels }}
+                  ssh: default=${{ env.SSH_AUTH_SOCK }}
+
+            - name: Build Docker image (without SSH)
+              if: ${{ !inputs.has_ssh_key }}
+              uses: docker/build-push-action@v6.16.0
               with:
                   context: ${{ inputs.docker_context }}
                   file: ${{ inputs.dockerfile }}
@@ -130,7 +156,7 @@ jobs:
               run: |
                   echo "## Installed Python Libraries (AMD64)" >> release-notes.txt
                   echo "<pre>" >> release-notes.txt
-                  docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list | grep "${{ inputs.pip_filter }}" >> release-notes.txt
+                  docker run --rm --entrypoint= "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" pip list --verbose | grep "${{ inputs.pip_filter }}" >> release-notes.txt
                   echo "</pre>" >> release-notes.txt
 
             - name: Attach docker image to release
