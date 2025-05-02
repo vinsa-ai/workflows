@@ -22,6 +22,11 @@ on:
                 required: false
                 default: false
 
+            has_ssh_key:
+                type: boolean
+                required: false
+                default: false
+
         secrets:
             REPOSITORY_USER_TOKEN:
                 required: true
@@ -43,9 +48,17 @@ jobs:
               with:
                   python-version: ${{ inputs.python_version }}
 
+            - name: Setup SSH
+              if: ${{ inputs.has_ssh_key }}
+              uses: MrSquaare/ssh-setup-action@v3.1.0
+              with:
+                  host: github.com
+                  private-key: ${{ secrets.ACTIONS_SSH_KEY }}
+
             - name: Install dependencies
               run: |
-                  pip install --upgrade pip pytest
+                  pip install --upgrade pip
+                  pip install pytest
                   pip install -r requirements.txt
 
             - name: Execute install script
