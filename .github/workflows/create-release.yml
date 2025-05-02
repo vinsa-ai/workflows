@@ -65,7 +65,7 @@ jobs:
 
             - name: Execute install script
               if: ${{ inputs.install_script }} != ""
-              run: bash ${{ inputs.install_script }}
+              run: ${{ inputs.install_script }}
 
             - name: Run tests with pytest
               if: ${{ ! inputs.skip_pytest }}
