@@ -1,0 +1,75 @@
+name: Run units tests and create release
+on:
+    workflow_call:
+        inputs:
+            skip_pytest:
+                type: boolean
+                required: false
+                default: false
+
+            python_version:
+                type: string
+                required: false
+                default: "3.12"
+
+            install_script:
+                type: string
+                required: false
+                default: ""
+
+            use_lfs:
+                type: boolean
+                required: false
+                default: false
+
+            has_ssh_key:
+                type: boolean
+                required: false
+                default: false
+
+        secrets:
+            REPOSITORY_USER_TOKEN:
+                required: true
+
+jobs:
+    run_unit_tests:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  lfs: ${{ inputs.use_lfs }}
+
+            - name: Checkout LFS objects if needed
+              if: ${{ inputs.use_lfs }}
+              run: git lfs checkout
+
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ inputs.python_version }}
+
+            - name: Setup SSH
+              if: ${{ inputs.has_ssh_key }}
+              uses: MrSquaare/ssh-setup-action@v3.1.0
+              with:
+                  host: github.com
+                  private-key: ${{ secrets.ACTIONS_SSH_KEY }}
+
+            - name: Install dependencies
+              run: |
+                  pip install --upgrade pip
+                  pip install pytest
+                  pip install -r requirements.txt
+
+            - name: Execute install script
+              if: ${{ inputs.install_script }} != ""
+              run: ${{ inputs.install_script }}
+
+            - name: Run tests with pytest
+              if: ${{ ! inputs.skip_pytest }}
+              run: pytest -x
+
+            - name: Warning about pytest
+              if: ${{ inputs.skip_pytest }}
+              run: |
+                  echo '::warning:: pytest is disabled.'
