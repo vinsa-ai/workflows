@@ -1,11 +1,18 @@
-name: Run units tests and create release
+name: Run pylint and verify code quality
 on:
     workflow_call:
         inputs:
-            skip_pytest:
+            skip_pylint:
                 type: boolean
                 required: false
                 default: false
+                description: "Skip pylint execution"
+
+            source_paths:
+                type: string
+                required: false
+                default: "."
+                description: "Space-separated source paths to lint (e.g., 'src' or 'backend code')"
 
             python_version:
                 type: string
@@ -16,6 +23,7 @@ on:
                 type: string
                 required: false
                 default: ""
+                description: "Optional script to run before linting"
 
             use_lfs:
                 type: boolean
@@ -32,16 +40,24 @@ on:
                 required: true
 
 jobs:
-    run_unit_tests:
+    run_pylint:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - name: Checkout repository
+              uses: actions/checkout@v4
               with:
                   lfs: ${{ inputs.use_lfs }}
 
             - name: Checkout LFS objects if needed
               if: ${{ inputs.use_lfs }}
               run: git lfs checkout
+
+            - name: Checkout workflows repo for shared config
+              uses: actions/checkout@v4
+              with:
+                  repository: levatas/workflows
+                  token: ${{ secrets.REPOSITORY_USER_TOKEN }}
+                  path: .workflows-config
 
             - name: Setup Python
               uses: actions/setup-python@v5
@@ -58,18 +74,52 @@ jobs:
             - name: Install dependencies
               run: |
                   pip install --upgrade pip
-                  pip install pytest
-                  pip install -r requirements.txt
+                  pip install pylint
+                  if [ -f requirements.txt ]; then
+                    pip install -r requirements.txt
+                  fi
 
             - name: Execute install script
-              if: ${{ inputs.install_script }} != ""
+              if: ${{ inputs.install_script != '' }}
               run: ${{ inputs.install_script }}
 
-            - name: Run tests with pytest
-              if: ${{ ! inputs.skip_pytest }}
-              run: pytest -x
-
-            - name: Warning about pytest
-              if: ${{ inputs.skip_pytest }}
+            - name: Run pylint
+              if: ${{ !inputs.skip_pylint }}
               run: |
-                  echo '::warning:: pytest is disabled.'
+                  # Determine which .pylintrc to use
+                  if [ -f ".pylintrc" ]; then
+                    RCFILE=".pylintrc"
+                    echo "Using repository's .pylintrc"
+                  else
+                    RCFILE=".workflows-config/.pylintrc"
+                    echo "Using shared .pylintrc from workflows repository"
+                  fi
+
+                  # Run pylint on each path
+                  for path in ${{ inputs.source_paths }}; do
+                    echo "======================================================"
+                    echo "Running pylint on: $path"
+                    echo "Using config: $RCFILE"
+                    echo "======================================================"
+
+                    TEMP_OUTPUT=$(mktemp)
+                    set +e
+                    pylint --rcfile="$RCFILE" "$path" | tee "$TEMP_OUTPUT"
+                    PYLINT_EXIT=${PIPESTATUS[0]}
+                    set -e
+
+                    # Check for E or F errors (Error and Fatal levels)
+                    if grep -qE "^[^:]+:[0-9]+:[0-9]+: [EF][0-9]+" "$TEMP_OUTPUT"; then
+                      rm -f "$TEMP_OUTPUT"
+                      echo "::error::Pylint found errors in $path"
+                      exit $PYLINT_EXIT
+                    fi
+
+                    rm -f "$TEMP_OUTPUT"
+                    echo "✓ Pylint passed for $path (no E or F level issues)"
+                  done
+
+            - name: Warning about pylint
+              if: ${{ inputs.skip_pylint }}
+              run: |
+                  echo '::warning::Pylint is disabled for this run.'

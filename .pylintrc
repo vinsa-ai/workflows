@@ -1,0 +1,29 @@
+[MAIN]
+jobs=4
+fail-on=E,F
+max-line-length=180
+ignore-patterns=.*_pb2\.py$,.*_pb2_grpc\.py$
+ignored-modules=cv2,numpy,sklearn
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-locals,
+    protected-access,
+    invalid-name,
+    duplicate-code,
+    fixme,
+    logging-fstring-interpolation,
+    import-outside-toplevel,
+    consider-using-with,
+    use-dict-literal,
+    broad-exception-caught,
+    bare-except,
+    f-string-without-interpolation,
+    wrong-import-order,
+    broad-exception-raised,
+    too-many-branches
