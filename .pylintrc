@@ -5,6 +5,9 @@ max-line-length=180
 ignore-patterns=.*_pb2\.py$,.*_pb2_grpc\.py$
 ignored-modules=cv2,numpy,sklearn
 
+# import the current folder as part of the Python sys path.
+init-hook='import sys; import os; sys.path.append(os.getcwd())'
+
 [MESSAGES CONTROL]
 disable=
     missing-module-docstring,
