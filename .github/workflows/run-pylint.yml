@@ -108,7 +108,7 @@ jobs:
 
                     TEMP_OUTPUT=$(mktemp)
                     set +e
-                    pylint --rcfile="$RCFILE" "$path" | tee "$TEMP_OUTPUT"
+                    pylint --rcfile="$RCFILE" . | tee "$TEMP_OUTPUT"
                     PYLINT_EXIT=${PIPESTATUS[0]}
                     set -e
 
