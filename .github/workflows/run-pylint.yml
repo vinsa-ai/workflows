@@ -55,7 +55,7 @@ jobs:
             - name: Checkout workflows repo for shared config
               uses: actions/checkout@v4
               with:
-                  repository: levatas/workflows
+                  repository: vinsa-ai/workflows
                   token: ${{ secrets.REPOSITORY_USER_TOKEN }}
                   path: .workflows-config
 
