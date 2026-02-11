@@ -1,0 +1,25 @@
+# Shared ruff configuration for Levatas model repositories
+# This config is used by the run-ruff.yml workflow
+
+line-length = 180
+target-version = "py312"
+
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "dist",
+    "build",
+    "*_pb2.py",
+    "*_pb2_grpc.py",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (undefined names, unused imports, etc.)
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
