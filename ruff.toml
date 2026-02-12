@@ -1,0 +1,40 @@
+# Shared ruff configuration for Levatas model repositories
+# This config is used by the run-ruff.yml workflow
+
+line-length = 180
+target-version = "py312"
+
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "dist",
+    "build",
+    "*_pb2.py",
+    "*_pb2_grpc.py",
+    "*.ipynb"
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (undefined names, unused imports, etc.)
+    "I",   # isort - import sorting/organization
+    "B",   # flake8-bugbear - common bugs/anti-patterns
+    "UP",  # pyupgrade - modern Python syntax
+
+    "C4",  # flake8-comprehensions - better list/dict comprehensions
+    "RUF", # ruff-specific - ruff's own linting rules
+    "N",   # pep8-naming - naming conventions (you disabled this in pylint)
+    "ARG", # flake8-unused-arguments - unused function arguments
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
