@@ -86,6 +86,14 @@ jobs:
             - name: Run ruff
               if: ${{ !inputs.skip_ruff }}
               run: |
+                  # Debug: show current directory and files
+                  echo "Current directory: $(pwd)"
+                  echo "Files in root:"
+                  ls -la
+                  echo ""
+                  echo "Checking for .workflows-config:"
+                  ls -la .workflows-config/ || echo ".workflows-config directory not found"
+
                   # Copy shared config to repo root (ruff auto-discovers it)
                   if [ -f .workflows-config/ruff.toml ]; then
                     cp .workflows-config/ruff.toml ./ruff.toml
