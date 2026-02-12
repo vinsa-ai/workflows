@@ -29,6 +29,10 @@ select = [
     "ARG", # flake8-unused-arguments - unused function arguments
 ]
 
+ignore = [
+    "RUF013"
+]
+
 [format]
 quote-style = "double"
 indent-style = "space"
