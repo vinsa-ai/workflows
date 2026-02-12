@@ -2,12 +2,6 @@ name: Run ruff linting and formatting check
 on:
     workflow_call:
         inputs:
-            skip_ruff:
-                type: boolean
-                required: false
-                default: false
-                description: "Skip ruff execution"
-
             source_paths:
                 type: string
                 required: false
@@ -19,26 +13,6 @@ on:
                 required: false
                 default: "3.12"
 
-            install_script:
-                type: string
-                required: false
-                default: ""
-                description: "Optional script to run before linting"
-
-            use_lfs:
-                type: boolean
-                required: false
-                default: false
-
-            has_ssh_key:
-                type: boolean
-                required: false
-                default: false
-
-        secrets:
-            REPOSITORY_USER_TOKEN:
-                required: true
-
 jobs:
     run_ruff:
         runs-on: ubuntu-latest
@@ -47,10 +21,6 @@ jobs:
               uses: actions/checkout@v4
               with:
                   lfs: ${{ inputs.use_lfs }}
-
-            - name: Checkout LFS objects if needed
-              if: ${{ inputs.use_lfs }}
-              run: git lfs checkout
 
             - name: Checkout workflows repo for shared config
               uses: actions/checkout@v4
@@ -64,36 +34,18 @@ jobs:
               with:
                   python-version: ${{ inputs.python_version }}
 
-            - name: Setup SSH
-              if: ${{ inputs.has_ssh_key }}
-              uses: MrSquaare/ssh-setup-action@v3.1.0
-              with:
-                  host: github.com
-                  private-key: ${{ secrets.ACTIONS_SSH_KEY }}
-
             - name: Install dependencies
               run: |
                   pip install --upgrade pip
                   pip install ruff==0.15.0
 
-            - name: Execute install script
-              if: ${{ inputs.install_script != '' }}
-              run: ${{ inputs.install_script }}
-
             - name: Run ruff
-              if: ${{ !inputs.skip_ruff }}
               run: |
                   # Copy shared config to repo root
                   cp .workflows-config/ruff.toml ./ruff.toml
-                  echo "Using shared ruff config"
-
+                
                   echo "Running ruff check on: ${{ inputs.source_paths }}"
                   ruff check ${{ inputs.source_paths }}
 
                   echo "Running ruff format check on: ${{ inputs.source_paths }}"
                   ruff format --check ${{ inputs.source_paths }}
-
-            - name: Warning about ruff
-              if: ${{ inputs.skip_ruff }}
-              run: |
-                  echo '::warning::Ruff is disabled for this run.'
