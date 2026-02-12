@@ -56,7 +56,6 @@ jobs:
               uses: actions/checkout@v4
               with:
                   repository: vinsa-ai/workflows
-                  ref: "harut/feat/ruff-workflow"  # TODO: change to "main" before merging
                   token: ${{ secrets.REPOSITORY_USER_TOKEN }}
                   path: .workflows-config
 
@@ -91,7 +90,6 @@ jobs:
                   cp .workflows-config/ruff.toml ./ruff.toml
                   echo "Using shared ruff config"
 
-                  # Run ruff check and format
                   echo "Running ruff check on: ${{ inputs.source_paths }}"
                   ruff check ${{ inputs.source_paths }}
 
