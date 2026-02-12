@@ -86,27 +86,28 @@ jobs:
             - name: Run ruff
               if: ${{ !inputs.skip_ruff }}
               run: |
-                  # Use shared config from workflows repository
-                  CONFIG_FILE=$(realpath .workflows-config/ruff.toml)
-                  echo "Using shared ruff config: $CONFIG_FILE"
-
-                  REPO_PATH=$(pwd)
+                  # Copy shared config to repo root (ruff auto-discovers it)
+                  if [ -f .workflows-config/ruff.toml ]; then
+                    cp .workflows-config/ruff.toml ./ruff.toml
+                    echo "Using shared ruff config from workflows repo"
+                  else
+                    echo "No shared config found, using repo's config or defaults"
+                  fi
 
                   # Run ruff on each path
                   for path in ${{ inputs.source_paths }}; do
                     echo "======================================================"
                     echo "Running ruff check on: $path"
-                    echo "Using config: $CONFIG_FILE"
                     echo "======================================================"
 
                     cd $path
-                    ruff check --config "$CONFIG_FILE" .
+                    ruff check .
 
                     echo ""
                     echo "Running ruff format check on: $path"
-                    ruff format --check --config "$CONFIG_FILE" .
+                    ruff format --check .
 
-                    cd $REPO_PATH
+                    cd $GITHUB_WORKSPACE
 
                     echo "✓ Ruff passed for $path"
                   done
