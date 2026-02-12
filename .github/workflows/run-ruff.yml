@@ -75,9 +75,6 @@ jobs:
               run: |
                   pip install --upgrade pip
                   pip install ruff==0.15.0
-                  if [ -f requirements.txt ]; then
-                    pip install -r requirements.txt
-                  fi
 
             - name: Execute install script
               if: ${{ inputs.install_script != '' }}
