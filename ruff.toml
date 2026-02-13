@@ -30,7 +30,8 @@ select = [
 ]
 
 ignore = [
-    "RUF013"
+    "RUF013",
+    "RUF005"
 ]
 
 [format]
