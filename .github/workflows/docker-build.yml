@@ -55,6 +55,13 @@ jobs:
             packages: write
 
         steps:
+            - name: Allocate space for Docker on the SSD
+              run: |
+                  sudo systemctl stop docker
+                  sudo mkdir /mnt/docker
+                  sudo ln -s /mnt/docker /var/lib/docker
+                  sudo systemctl start docker
+
             - name: Checkout
               uses: actions/checkout@v4
               with:
@@ -133,7 +140,7 @@ jobs:
                   SIMPLE_IMAGE_NAME: ${{ fromJSON(steps.metadata.outputs.json).labels['org.opencontainers.image.title'] }}
               run: |
                   export BASE_FILENAME=$(echo "ghcr_io_vinsa_ai_${SIMPLE_IMAGE_NAME}_${DOCKER_METADATA_OUTPUT_VERSION}" | sed s/-/_/g)
-                  export TAR_FILENAME=${BASE_FILENAME}.tar
+                  export TAR_FILENAME=/mnt/${BASE_FILENAME}.tar
                   docker pull "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}"
                   docker image inspect "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" > ${BASE_FILENAME}.json
                   docker save "${DOCKER_IMAGE_ID}:${DOCKER_METADATA_OUTPUT_VERSION}" | gzip > "${TAR_FILENAME}.gz"
