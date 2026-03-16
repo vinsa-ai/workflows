@@ -62,6 +62,7 @@ jobs:
                   sudo mkdir /mnt/docker
                   sudo ln -s /mnt/docker /var/lib/docker
                   sudo systemctl start docker
+                  df -hT
 
             - name: Checkout
               uses: actions/checkout@v4
