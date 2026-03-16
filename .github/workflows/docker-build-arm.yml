@@ -49,8 +49,7 @@ env:
 
 jobs:
     docker_build_arm:
-        runs-on:
-            group: larger-runner-group
+        runs-on: larger-runner-x64
         permissions:
             contents: read
             packages: write
