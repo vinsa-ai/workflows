@@ -58,6 +58,7 @@ jobs:
             - name: Allocate space for Docker on the SSD
               run: |
                   sudo systemctl stop docker
+                  sudo chmod a+rw /mnt
                   sudo mkdir /mnt/docker
                   sudo ln -s /mnt/docker /var/lib/docker
                   sudo systemctl start docker
