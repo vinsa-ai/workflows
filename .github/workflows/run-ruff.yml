@@ -1,0 +1,147 @@
+name: Run ruff and verify code quality
+on:
+    workflow_call:
+        inputs:
+            skip_ruff:
+                type: boolean
+                required: false
+                default: false
+                description: "Skip ruff execution"
+
+            source_paths:
+                type: string
+                required: false
+                default: "."
+                description: "Space-separated source paths to lint (e.g., 'src' or 'backend code')"
+
+            python_version:
+                type: string
+                required: false
+                default: "3.12"
+
+            install_script:
+                type: string
+                required: false
+                default: ""
+                description: "Optional script to run before linting"
+
+            use_lfs:
+                type: boolean
+                required: false
+                default: false
+
+            has_ssh_key:
+                type: boolean
+                required: false
+                default: false
+
+        secrets:
+            REPOSITORY_USER_TOKEN:
+                required: true
+
+jobs:
+    run_ruff:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  lfs: ${{ inputs.use_lfs }}
+
+            - name: Checkout LFS objects if needed
+              if: ${{ inputs.use_lfs }}
+              run: git lfs checkout
+
+            - name: Checkout workflows repo for shared config
+              uses: actions/checkout@v4
+              with:
+                  repository: vinsa-ai/workflows
+                  token: ${{ secrets.REPOSITORY_USER_TOKEN }}
+                  path: .workflows-config
+
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ inputs.python_version }}
+
+            - name: Setup SSH
+              if: ${{ inputs.has_ssh_key }}
+              uses: MrSquaare/ssh-setup-action@v3.1.0
+              with:
+                  host: github.com
+                  private-key: ${{ secrets.ACTIONS_SSH_KEY }}
+
+            - name: Install dependencies
+              run: |
+                  pip install --upgrade pip
+                  pip install ruff==0.15.0
+                  if [ -f requirements.txt ]; then
+                    pip install -r requirements.txt
+                  fi
+
+            - name: Execute install script
+              if: ${{ inputs.install_script != '' }}
+              run: ${{ inputs.install_script }}
+
+            - name: Run ruff
+              if: ${{ !inputs.skip_ruff }}
+              run: |
+                  # Determine which ruff config to use
+                  if [ -f "ruff.toml" ]; then
+                    echo "Using repository's ruff.toml"
+                  else
+                    cp .workflows-config/ruff.toml ./ruff.toml
+                    echo "Using shared ruff.toml from workflows repository"
+                  fi
+
+                  HAS_ERRORS=0
+
+                  # Run ruff on each path
+                  for path in ${{ inputs.source_paths }}; do
+                    echo "======================================================"
+                    echo "Running ruff on: $path"
+                    echo "======================================================"
+
+                    TEMP_OUTPUT=$(mktemp)
+                    set +e
+                    ruff check "$path" --output-format=full | tee "$TEMP_OUTPUT"
+                    set -e
+
+                    TEMP_ANNOTATIONS=$(mktemp)
+                    ruff check "$path" --output-format=github > "$TEMP_ANNOTATIONS" 2>&1 || true
+
+                    while IFS= read -r line; do
+                      if [[ -z "$line" ]]; then
+                        continue
+                      fi
+                      if echo "$line" | grep -qE 'title=Ruff \((E|F)[0-9]+'; then
+                        echo "$line"
+                      elif [[ "$line" == ::error* ]]; then
+                        echo "${line/::error::/::warning::}"
+                      else
+                        echo "$line"
+                      fi
+                    done < "$TEMP_ANNOTATIONS"
+
+                    # Match pylint fail-on=E,F: pycodestyle errors and pyflakes rule codes
+                    if grep -qE 'title=Ruff \((E|F)[0-9]+' "$TEMP_ANNOTATIONS"; then
+                      echo "::error::Ruff found errors in $path"
+                      HAS_ERRORS=1
+                    elif [ -s "$TEMP_OUTPUT" ]; then
+                      echo "::warning::Ruff reported warnings in $path (see log above)"
+                      echo "✓ Ruff passed for $path (no E or F level issues)"
+                    else
+                      echo "✓ Ruff passed for $path (no issues)"
+                    fi
+
+                    rm -f "$TEMP_OUTPUT" "$TEMP_ANNOTATIONS"
+                  done
+
+                  if [ "$HAS_ERRORS" -ne 0 ]; then
+                    exit 1
+                  fi
+
+            - name: Warning about ruff
+              if: ${{ inputs.skip_ruff }}
+              run: |
+                  echo '::warning::Ruff is disabled for this run.'
