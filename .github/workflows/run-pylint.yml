@@ -1,12 +1,12 @@
-name: Run ruff linting and formatting check
+name: Run pylint and verify code quality
 on:
     workflow_call:
         inputs:
-            skip_ruff:
+            skip_pylint:
                 type: boolean
                 required: false
                 default: false
-                description: "Skip ruff execution"
+                description: "Skip pylint execution"
 
             source_paths:
                 type: string
@@ -40,7 +40,7 @@ on:
                 required: true
 
 jobs:
-    run_linter:
+    run_pylint:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
@@ -74,7 +74,7 @@ jobs:
             - name: Install dependencies
               run: |
                   pip install --upgrade pip
-                  pip install ruff==0.15.0
+                  pip install pylint
                   if [ -f requirements.txt ]; then
                     pip install -r requirements.txt
                   fi
@@ -83,35 +83,49 @@ jobs:
               if: ${{ inputs.install_script != '' }}
               run: ${{ inputs.install_script }}
 
-            - name: Run ruff
-              if: ${{ !inputs.skip_ruff }}
+            - name: Run pylint
+              if: ${{ !inputs.skip_pylint }}
               run: |
-                  # Determine which ruff config to use
-                  if [ -f "ruff.toml" ]; then
-                    echo "Using repository's ruff.toml"
+                  # Determine which .pylintrc to use
+                  if [ -f ".pylintrc" ]; then
+                    RCFILE=$(realpath .pylintrc)
+                    echo "Using repository's .pylintrc"
                   else
-                    cp .workflows-config/ruff.toml ./ruff.toml
-                    echo "Using shared ruff.toml from workflows repository"
+                    RCFILE=$(realpath .workflows-config/.pylintrc)
+                    echo "Using shared .pylintrc from workflows repository"
                   fi
 
                   REPO_PATH=$(pwd)
 
-                  # Run ruff on each path
+                  # Run pylint on each path
                   for path in ${{ inputs.source_paths }}; do
                     echo "======================================================"
-                    echo "Running ruff on: $path"
+                    echo "Running pylint on: $path"
+                    echo "Using config: $RCFILE"
                     echo "======================================================"
 
-                    echo "Running ruff check on: $path"
-                    ruff check "$path" || exit 1
+                    cd $path
 
-                    echo "Running ruff format check on: $path"
-                    ruff format --check "$path" || exit 1
+                    TEMP_OUTPUT=$(mktemp)
+                    set +e
+                    pylint --rcfile="$RCFILE" . | tee "$TEMP_OUTPUT"
+                    PYLINT_EXIT=${PIPESTATUS[0]}
+                    set -e
 
-                    echo "✓ Ruff passed for $path"
+                    cd $REPO_PATH
+
+                    # Check for E or F errors (Error and Fatal levels)
+                    if grep -qE "^[^:]+:[0-9]+:[0-9]+: [EF][0-9]+" "$TEMP_OUTPUT"; then
+                      rm -f "$TEMP_OUTPUT"
+                      echo "::error::Pylint found errors in $path"
+                      exit $PYLINT_EXIT
+                    fi
+
+                    rm -f "$TEMP_OUTPUT"
+                    echo "✓ Pylint passed for $path (no E or F level issues)"
                   done
 
-            - name: Warning about ruff
-              if: ${{ inputs.skip_ruff }}
+            - name: Warning about pylint
+              if: ${{ inputs.skip_pylint }}
               run: |
-                  echo '::warning::Ruff is disabled for this run.'
+                  echo '::warning::Pylint is disabled for this run.'
