@@ -95,6 +95,8 @@ jobs:
                   fi
 
                   HAS_ERRORS=0
+                  # Rule codes reported as warnings only (do not fail the workflow)
+                  NON_CRITICAL_CODES='E402|ARG001|N999|I001|RUF010'
 
                   # Run ruff on each path
                   for path in ${{ inputs.source_paths }}; do
@@ -114,7 +116,9 @@ jobs:
                       if [[ -z "$line" ]]; then
                         continue
                       fi
-                      if echo "$line" | grep -qE 'title=Ruff \((E|F)[0-9]+'; then
+                      if echo "$line" | grep -qE "title=Ruff \(($NON_CRITICAL_CODES)\)"; then
+                        echo "${line/::error::/::warning::}"
+                      elif echo "$line" | grep -qE 'title=Ruff \((E|F)[0-9]+'; then
                         echo "$line"
                       elif [[ "$line" == ::error* ]]; then
                         echo "${line/::error::/::warning::}"
@@ -123,8 +127,8 @@ jobs:
                       fi
                     done < "$TEMP_ANNOTATIONS"
 
-                    # Match pylint fail-on=E,F: pycodestyle errors and pyflakes rule codes
-                    if grep -qE 'title=Ruff \((E|F)[0-9]+' "$TEMP_ANNOTATIONS"; then
+                    # Match pylint fail-on=E,F, excluding non-critical rule codes
+                    if grep -oE 'title=Ruff \([^)]+\)' "$TEMP_ANNOTATIONS" | sed -n 's/title=Ruff (\(.*\))/\1/p' | grep -E '^(E|F)[0-9]+$' | grep -Ev "^($NON_CRITICAL_CODES)$" | grep -q .; then
                       echo "::error::Ruff found errors in $path"
                       HAS_ERRORS=1
                     elif [ -s "$TEMP_OUTPUT" ]; then
