@@ -1,5 +1,5 @@
 # Shared ruff configuration for Levatas model repositories
-# This config is used by the run-ruff.yml workflow
+# This config is used by the run-linter.yml workflow
 
 line-length = 180
 target-version = "py312"
