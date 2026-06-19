@@ -62,7 +62,7 @@ jobs:
                   pip install -r requirements.txt
 
             - name: Execute install script
-              if: ${{ inputs.install_script }} != ""
+              if: ${{ inputs.install_script != "" }}
               run: ${{ inputs.install_script }}
 
             - name: Run tests with pytest
