@@ -65,7 +65,7 @@ jobs:
                   df -hT
 
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7.0.0
               with:
                   lfs: ${{ inputs.use_lfs }}
 

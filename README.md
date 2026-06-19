@@ -1,8 +1,8 @@
 # GitHub Workflows
 
 ```
-actions/setup-python@v5
-actions/checkout@v4
+actions/setup-python@v6.2.0
+actions/checkout@v7.0.0
 actions/download-artifact@v4
 docker/login-action@v3
 docker/setup-qemu-action@v3
