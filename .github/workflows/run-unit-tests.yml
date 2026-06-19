@@ -50,7 +50,7 @@ jobs:
 
             - name: Setup SSH
               if: ${{ inputs.has_ssh_key }}
-              uses: MrSquaare/ssh-setup-action@v3.1.0
+              uses: MrSquaare/ssh-setup-action@v4.0.0
               with:
                   host: github.com
                   private-key: ${{ secrets.ACTIONS_SSH_KEY }}
