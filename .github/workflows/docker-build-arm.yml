@@ -110,7 +110,7 @@ jobs:
                   if [ -e ${{ inputs.dockerfile }} ]; then sed -i -E 's/(CONTAINER|MODEL)_RELEASE_VERSION=(unknown|local|\$\{[^}]+\})/\1_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' "${{ inputs.dockerfile }}"; fi
 
             - name: Execute install script
-              if: ${{ inputs.install_script }} != ""
+              if: ${{ inputs.install_script != "" }}
               run: ${{ inputs.install_script }}
 
             - name: Setup SSH
