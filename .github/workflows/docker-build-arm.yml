@@ -168,3 +168,4 @@ jobs:
               with:
                   tag_name: ${{ env.GITHUB_REF_NAME }}
                   body_path: release-notes.txt
+                  token: ${{ secrets.REPOSITORY_USER_TOKEN }}
