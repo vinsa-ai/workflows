@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7.0.0
 
       - name: Log in with the container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4.2.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -27,7 +27,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: metadata
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v6.1.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -39,7 +39,7 @@ jobs:
         run: test -e Dockerfile && sed -i 's/MODEL_RELEASE_VERSION=unknown/MODEL_RELEASE_VERSION=${{ steps.metadata.outputs.version }}/g' Dockerfile
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v7.2.0
         with:
           context: .
           push: true

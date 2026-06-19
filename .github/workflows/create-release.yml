@@ -35,7 +35,7 @@ jobs:
     create_release:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7.0.0
               with:
                   fetch-depth: 0
                   lfs: ${{ inputs.use_lfs }}
@@ -45,13 +45,13 @@ jobs:
               run: git lfs checkout
 
             - name: Setup Python
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v6.2.0
               with:
                   python-version: ${{ inputs.python_version }}
 
             - name: Setup SSH
               if: ${{ inputs.has_ssh_key }}
-              uses: MrSquaare/ssh-setup-action@v3.1.0
+              uses: MrSquaare/ssh-setup-action@v4.0.0
               with:
                   host: github.com
                   private-key: ${{ secrets.ACTIONS_SSH_KEY }}
@@ -99,7 +99,7 @@ jobs:
                   git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
 
             - name: Create a release
-              uses: softprops/action-gh-release@master
+              uses: softprops/action-gh-release@v3.0.1
               env:
                   GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
               with:
