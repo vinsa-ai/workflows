@@ -37,6 +37,11 @@ on:
                 required: false
                 default: false
 
+            push_to_ecr:
+                type: boolean
+                required: false
+                default: false
+
         secrets:
             REPOSITORY_USER_TOKEN:
                 required: true
@@ -53,6 +58,7 @@ jobs:
         permissions:
             contents: read
             packages: write
+            id-token: write
 
         steps:
             - name: Allocate space for Docker on the SSD
@@ -134,6 +140,39 @@ jobs:
                   push: true
                   tags: ${{ steps.metadata.outputs.tags }}
                   labels: ${{ steps.metadata.outputs.labels }}
+
+            - name: Configure AWS credentials
+              if: ${{ inputs.push_to_ecr }}
+              uses: aws-actions/configure-aws-credentials@v4.0.2
+              with:
+                  role-to-assume: arn:aws:iam::429352483044:role/GitHubActionsEcrPush
+                  aws-region: us-east-1
+
+            - name: Log in to Amazon ECR
+              if: ${{ inputs.push_to_ecr }}
+              uses: aws-actions/amazon-ecr-login@v2.0.1
+
+            - name: Copy image to Amazon ECR
+              if: ${{ inputs.push_to_ecr }}
+              env:
+                  ECR_REGISTRY: 429352483044.dkr.ecr.us-east-1.amazonaws.com
+                  GHCR_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+              run: |
+                  set -euo pipefail
+                  while read -r tag; do
+                      [ -n "$tag" ] || continue
+                      path="${tag#*/}"
+                      repo="${path%:*}"
+                      version="${path##*:}"
+                      dest="${ECR_REGISTRY}/${path}"
+                      if aws ecr describe-images --repository-name "${repo}" \
+                           --image-ids "imageTag=${version}" >/dev/null 2>&1; then
+                          echo "already in ECR, skipping: ${dest}"
+                          continue
+                      fi
+                      echo "copying ${tag} to ${dest}"
+                      docker buildx imagetools create --tag "${dest}" "${tag}"
+                  done <<< "${{ steps.metadata.outputs.tags }}"
 
             - name: Prepare Release Notes 2.0
               env:
