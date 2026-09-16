@@ -55,10 +55,11 @@ env:
 jobs:
     docker_build:
         runs-on: larger-runner-x64
+        outputs:
+            image_tags: ${{ steps.metadata.outputs.tags }}
         permissions:
             contents: read
             packages: write
-            id-token: write
 
         steps:
             - name: Allocate space for Docker on the SSD
@@ -141,39 +142,6 @@ jobs:
                   tags: ${{ steps.metadata.outputs.tags }}
                   labels: ${{ steps.metadata.outputs.labels }}
 
-            - name: Configure AWS credentials
-              if: ${{ inputs.push_to_ecr }}
-              uses: aws-actions/configure-aws-credentials@v4.0.2
-              with:
-                  role-to-assume: arn:aws:iam::429352483044:role/GitHubActionsEcrPush
-                  aws-region: us-east-1
-
-            - name: Log in to Amazon ECR
-              if: ${{ inputs.push_to_ecr }}
-              uses: aws-actions/amazon-ecr-login@v2.0.1
-
-            - name: Copy image to Amazon ECR
-              if: ${{ inputs.push_to_ecr }}
-              env:
-                  ECR_REGISTRY: 429352483044.dkr.ecr.us-east-1.amazonaws.com
-                  GHCR_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-              run: |
-                  set -euo pipefail
-                  while read -r tag; do
-                      [ -n "$tag" ] || continue
-                      path="${tag##*/}"
-                      repo="${path%:*}"
-                      version="${path##*:}"
-                      dest="${ECR_REGISTRY}/${path}"
-                      if aws ecr describe-images --repository-name "${repo}" \
-                           --image-ids "imageTag=${version}" >/dev/null 2>&1; then
-                          echo "already in ECR, skipping: ${dest}"
-                          continue
-                      fi
-                      echo "copying ${tag} to ${dest}"
-                      docker buildx imagetools create --tag "${dest}" "${tag}"
-                  done <<< "${{ steps.metadata.outputs.tags }}"
-
             - name: Prepare Release Notes 2.0
               env:
                   DOCKER_IMAGE_ID: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -200,3 +168,81 @@ jobs:
                   tag_name: ${{ env.GITHUB_REF_NAME }}
                   body_path: release-notes.txt
                   token: ${{ secrets.REPOSITORY_USER_TOKEN }}
+
+    push_to_ecr:
+        needs: docker_build
+        if: ${{ inputs.push_to_ecr }}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: read
+            id-token: write
+
+        steps:
+            - name: Log in to the Container registry
+              uses: docker/login-action@v4.2.0
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.REPOSITORY_USER_TOKEN }}
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v4.1.0
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4.0.2
+              with:
+                  role-to-assume: arn:aws:iam::429352483044:role/GitHubActionsEcrPush
+                  aws-region: us-east-1
+
+            - name: Log in to Amazon ECR
+              uses: aws-actions/amazon-ecr-login@v2.0.1
+
+            - name: Copy image to Amazon ECR
+              env:
+                  ECR_REGISTRY: 429352483044.dkr.ecr.us-east-1.amazonaws.com
+                  IMAGE_TAGS: ${{ needs.docker_build.outputs.image_tags }}
+              run: |
+                  set -euo pipefail
+                  while read -r tag; do
+                      [ -n "$tag" ] || continue
+                      path="${tag##*/}"
+                      repo="${path%:*}"
+                      version="${path##*:}"
+                      dest="${ECR_REGISTRY}/${path}"
+
+                      set +e
+                      lookup=$(aws ecr describe-images --repository-name "${repo}" \
+                                   --image-ids "imageTag=${version}" 2>&1)
+                      rc=$?
+                      set -e
+                      if [ $rc -eq 0 ]; then
+                          echo "already in ECR, skipping: ${dest}"
+                          continue
+                      fi
+                      if ! grep -q "ImageNotFoundException" <<< "${lookup}"; then
+                          echo "could not check ECR for ${dest}:" >&2
+                          echo "${lookup}" >&2
+                          if grep -q "RepositoryNotFoundException" <<< "${lookup}"; then
+                              echo "the ECR repository ${repo} does not exist yet and this role cannot create one" >&2
+                          fi
+                          exit 1
+                      fi
+
+                      echo "copying ${tag} to ${dest}"
+                      if ! docker buildx imagetools create --tag "${dest}" "${tag}"; then
+                          landed=$(aws ecr describe-images --repository-name "${repo}" \
+                                       --image-ids "imageTag=${version}" \
+                                       --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)
+                          source_digest=$(docker buildx imagetools inspect \
+                                       --format '{{.Manifest.Digest}}' "${tag}" 2>/dev/null || true)
+                          if [ -n "${landed}" ] && [ "${landed}" = "${source_digest}" ]; then
+                              echo "another build published the same image at ${dest}, continuing"
+                              continue
+                          fi
+                          echo "push failed and ${dest} does not hold this image" >&2
+                          echo "  in ECR : ${landed:-nothing}" >&2
+                          echo "  ours   : ${source_digest:-unknown}" >&2
+                          exit 1
+                      fi
+                  done <<< "${IMAGE_TAGS}"
