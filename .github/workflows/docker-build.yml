@@ -211,15 +211,31 @@ jobs:
                       version="${path##*:}"
                       dest="${ECR_REGISTRY}/${path}"
 
+                      ours=$(docker buildx imagetools inspect \
+                                 --format '{{.Manifest.Digest}}' "${tag}")
+                      if [ -z "${ours}" ]; then
+                          echo "could not read the digest of ${tag}" >&2
+                          exit 1
+                      fi
+
                       set +e
                       lookup=$(aws ecr describe-images --repository-name "${repo}" \
-                                   --image-ids "imageTag=${version}" 2>&1)
+                                   --image-ids "imageTag=${version}" \
+                                   --query 'imageDetails[0].imageDigest' --output text 2>&1)
                       rc=$?
                       set -e
+
                       if [ $rc -eq 0 ]; then
-                          echo "already in ECR, skipping: ${dest}"
-                          continue
+                          if [ "${lookup}" = "${ours}" ]; then
+                              echo "already in ECR with the same digest, skipping: ${dest}"
+                              continue
+                          fi
+                          echo "${dest} already exists but holds a different image" >&2
+                          echo "  in ECR : ${lookup}" >&2
+                          echo "  ours   : ${ours}" >&2
+                          exit 1
                       fi
+
                       if ! grep -q "ImageNotFoundException" <<< "${lookup}"; then
                           echo "could not check ECR for ${dest}:" >&2
                           echo "${lookup}" >&2
@@ -234,15 +250,13 @@ jobs:
                           landed=$(aws ecr describe-images --repository-name "${repo}" \
                                        --image-ids "imageTag=${version}" \
                                        --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)
-                          source_digest=$(docker buildx imagetools inspect \
-                                       --format '{{.Manifest.Digest}}' "${tag}" 2>/dev/null || true)
-                          if [ -n "${landed}" ] && [ "${landed}" = "${source_digest}" ]; then
+                          if [ "${landed}" = "${ours}" ]; then
                               echo "another build published the same image at ${dest}, continuing"
                               continue
                           fi
                           echo "push failed and ${dest} does not hold this image" >&2
                           echo "  in ECR : ${landed:-nothing}" >&2
-                          echo "  ours   : ${source_digest:-unknown}" >&2
+                          echo "  ours   : ${ours}" >&2
                           exit 1
                       fi
                   done <<< "${IMAGE_TAGS}"
