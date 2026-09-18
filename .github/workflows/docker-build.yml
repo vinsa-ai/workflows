@@ -40,7 +40,7 @@ on:
             push_to_ecr:
                 type: boolean
                 required: false
-                default: false
+                default: true
 
         secrets:
             REPOSITORY_USER_TOKEN:
@@ -242,12 +242,14 @@ jobs:
                           exit 1
                       fi
 
+                      if grep -q "(RepositoryNotFoundException)" <<< "${lookup}"; then
+                          echo "::warning::skipping ${tag}, no ECR repository named ${repo} exists"
+                          continue
+                      fi
+
                       if ! grep -q "ImageNotFoundException" <<< "${lookup}"; then
                           echo "could not check ECR for ${dest}:" >&2
                           echo "${lookup}" >&2
-                          if grep -q "RepositoryNotFoundException" <<< "${lookup}"; then
-                              echo "the ECR repository ${repo} does not exist yet and this role cannot create one" >&2
-                          fi
                           exit 1
                       fi
 
