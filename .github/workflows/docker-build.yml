@@ -210,8 +210,8 @@ jobs:
                       repo="${path%:*}"
                       version="${path##*:}"
 
-                      if printf '%s' "${version}" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
-                          echo "skipping ${tag}, rolling tags are not copied to ECR"
+                      if printf '%s' "${version}" | grep -qE '^([0-9]+(\.[0-9]+)?|latest)$'; then
+                          echo "skipping ${tag}, floating tags are not copied to ECR"
                           continue
                       fi
 
