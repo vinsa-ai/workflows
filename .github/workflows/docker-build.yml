@@ -209,6 +209,12 @@ jobs:
                       path="${tag##*/}"
                       repo="${path%:*}"
                       version="${path##*:}"
+
+                      if printf '%s' "${version}" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
+                          echo "skipping ${tag}, rolling tags are not copied to ECR"
+                          continue
+                      fi
+
                       dest="${ECR_REGISTRY}/${path}"
 
                       ours=$(docker buildx imagetools inspect \
