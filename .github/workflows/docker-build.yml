@@ -47,16 +47,22 @@ on:
                 required: true
             ACTIONS_SSH_KEY:
                 required: false
+            QUAY_USERNAME:
+                required: false
+            QUAY_TOKEN:
+                required: false
 
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}
+    QUAY_REGISTRY: quay.io
 
 jobs:
     docker_build:
         runs-on: larger-runner-x64
         outputs:
             image_tags: ${{ steps.metadata.outputs.tags }}
+            version: ${{ steps.metadata.outputs.version }}
         permissions:
             contents: read
             packages: write
@@ -268,3 +274,103 @@ jobs:
                           exit 1
                       fi
                   done <<< "${IMAGE_TAGS}"
+
+    mirror_to_quay:
+        needs: docker_build
+        if: ${{ !contains(needs.docker_build.outputs.version, '-') }}
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        permissions:
+            contents: read
+            packages: read
+
+        steps:
+            - name: Resolve Quay image name
+              run: echo "QUAY_IMAGE_NAME=inflightai/${GITHUB_REPOSITORY#*/}" >> "$GITHUB_ENV"
+
+            - name: Check for Quay credentials
+              id: quay_creds
+              env:
+                  QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+                  QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+              run: |
+                  if [ -n "$QUAY_USERNAME" ] && [ -n "$QUAY_TOKEN" ]; then
+                      echo "configured=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "configured=false" >> "$GITHUB_OUTPUT"
+                      echo "::warning::QUAY_USERNAME/QUAY_TOKEN are not set; skipping the Quay mirror. The GHCR build is unaffected."
+                  fi
+
+            - name: Extract Quay metadata (tags)
+              id: quay_metadata
+              if: steps.quay_creds.outputs.configured == 'true'
+              uses: docker/metadata-action@v6.1.0
+              with:
+                  images: ${{ env.QUAY_REGISTRY }}/${{ env.QUAY_IMAGE_NAME }}
+                  flavor: |
+                      latest=false
+                  tags: |
+                      type=semver,pattern={{version}}
+                      type=semver,pattern={{major}}.{{minor}}
+                      type=semver,pattern={{major}}
+
+            - name: Install skopeo
+              if: steps.quay_creds.outputs.configured == 'true'
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -y -qq skopeo
+
+            - name: Log in to both registries
+              if: steps.quay_creds.outputs.configured == 'true'
+              env:
+                  GHCR_USERNAME: ${{ github.actor }}
+                  GHCR_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
+                  QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+                  QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+              run: |
+                  set -euo pipefail
+                  printf '%s' "$GHCR_TOKEN" | skopeo login "$REGISTRY" -u "$GHCR_USERNAME" --password-stdin
+                  printf '%s' "$QUAY_TOKEN" | skopeo login "$QUAY_REGISTRY" -u "$QUAY_USERNAME" --password-stdin
+
+            - name: Mirror the built image to Quay
+              if: steps.quay_creds.outputs.configured == 'true'
+              env:
+                  SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.docker_build.outputs.version }}
+                  QUAY_TAGS: ${{ steps.quay_metadata.outputs.tags }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "${QUAY_TAGS//[[:space:]]/}" ]; then
+                      echo "::error::No Quay tags were resolved for ${SOURCE_IMAGE}."
+                      exit 1
+                  fi
+                  while IFS= read -r tag; do
+                      [ -n "$tag" ] || continue
+                      echo "mirroring ${SOURCE_IMAGE} to ${tag}"
+                      skopeo copy --override-os linux --override-arch amd64 \
+                          "docker://${SOURCE_IMAGE}" "docker://${tag}"
+                  done <<< "$QUAY_TAGS"
+
+            - name: Verify each Quay tag is a single amd64 manifest
+              if: steps.quay_creds.outputs.configured == 'true'
+              env:
+                  QUAY_TAGS: ${{ steps.quay_metadata.outputs.tags }}
+              run: |
+                  set -euo pipefail
+                  while IFS= read -r tag; do
+                      [ -n "$tag" ] || continue
+                      raw=$(skopeo inspect --raw "docker://${tag}")
+                      media=$(printf '%s' "$raw" | jq -r '.mediaType // ""')
+                      case "$media" in
+                          *index*|*manifest.list*)
+                              echo "::error::${tag} is ${media}, expected a single amd64 manifest"
+                              exit 1
+                              ;;
+                      esac
+                      echo "verified ${tag} (${media})"
+                  done <<< "$QUAY_TAGS"
+
+            - name: Log out of both registries
+              if: always() && steps.quay_creds.outputs.configured == 'true'
+              run: |
+                  skopeo logout "$REGISTRY" || true
+                  skopeo logout "$QUAY_REGISTRY" || true
