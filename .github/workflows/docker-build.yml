@@ -275,7 +275,7 @@ jobs:
                       fi
                   done <<< "${IMAGE_TAGS}"
 
-    mirror_to_quay:
+    push_to_quay:
         needs: docker_build
         if: ${{ !contains(needs.docker_build.outputs.version, '-') }}
         runs-on: ubuntu-latest
