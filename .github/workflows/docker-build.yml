@@ -275,7 +275,7 @@ jobs:
                       fi
                   done <<< "${IMAGE_TAGS}"
 
-    mirror_to_quay:
+    push_to_quay:
         needs: docker_build
         if: ${{ !contains(needs.docker_build.outputs.version, '-') }}
         runs-on: ubuntu-latest
@@ -311,8 +311,6 @@ jobs:
                       latest=false
                   tags: |
                       type=semver,pattern={{version}}
-                      type=semver,pattern={{major}}.{{minor}}
-                      type=semver,pattern={{major}}
 
             - name: Install skopeo
               if: steps.quay_creds.outputs.configured == 'true'
