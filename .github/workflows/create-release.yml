@@ -78,7 +78,7 @@ jobs:
 
             - name: Bump version and tag it
               id: tag_version
-              uses: mathieudutour/github-tag-action@v6.2
+              uses: mathieudutour/github-tag-action@v7.0.0
               with:
                   github_token: ${{ secrets.REPOSITORY_USER_TOKEN }}
 
@@ -99,6 +99,7 @@ jobs:
                   git log ${{ steps.tag_version.outputs.previous_tag }}...HEAD --right-only "--pretty=tformat:%h %as: %s" >> release-notes.txt
 
             - name: Create a release
+              if: steps.tag_version.outputs.new_tag != ''
               uses: softprops/action-gh-release@v3.0.1
               env:
                   GITHUB_TOKEN: ${{ secrets.REPOSITORY_USER_TOKEN }}
